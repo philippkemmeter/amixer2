@@ -1,0 +1,122 @@
+#!/bin/bash
+
+Cw="\033[0m"
+CW="\033[1;37m"
+Cu="\033[4m"
+CR="\033[1;31m"
+
+function print_help_and_quit() {
+    echo -e "Usage: $CW$0 <options> [command]$Cw"
+    echo
+    echo -e "$Cu${CW}Available options:$Cw"
+    echo -e "$CW  -h,--help      $Cw    This help"
+    echo -e "$CW  -c,--card N    $Cw    Select the card"
+    echo -e "$CW  -D,--device N  $Cw    Select the device, default 'default'"
+    echo -e "$CW  -d,--debug     $Cw    Debug mode"
+    echo -e "$CW  -n,--nocheck   $Cw    Do not perform range checking"
+    echo -e "$CW  -v,--version   $Cw    Print version of this program"
+    echo -e "$CW  -q,--quiet     $Cw    Be quiet"
+    echo -e "$CW  -i,--inactive  $Cw    Show also inactive controls"
+    echo -e "$CW  -a,--abstract L$Cw    Select abstraction level (none or basic)"
+    echo -e "$CW  -s,--stdin     $Cw    Read and execute commands from stdin sequentially"
+    echo -e "$CW  -R,--raw-volume$Cw    Use the raw value (default)"
+    echo -e "$CW  -M,--mapped-volume$Cw Use the mapped volume"
+    echo
+    echo -e "$Cu${CW}Available commands:$Cw"
+    echo -e "$CW  scontrols      $Cw    Show all mixer simple controls"
+    echo -e "$CW  scontents      $Cw    Show contents of all mixer simple controls (default command)"
+    echo -e "$CW  sset sID P     $Cw    Set contents for one mixer simple control"
+    echo -e "$CW  sget sID       $Cw    Get contents for one mixer simple control"
+    echo -e "$CW  sinc sID P     $Cw    Increases contents for one mixer simple control"
+    echo -e "$CW  sdec sID P     $Cw    Decreases contents for one mixer simple control"
+    echo -e "$CW  controls       $Cw    Show all controls for given card"
+    echo -e "$CW  contents       $Cw    Show contents of all controls for given card"
+    echo -e "$CW  cset cID P     $Cw    Set control contents for one control"
+    echo -e "$CW  cget cID       $Cw    Get control contents for one control"
+
+    exit 1
+}
+
+opts=
+cmd=
+declare -a cmdargs=()
+
+while [[ $# -ge 1 ]]
+do
+    case $1 in
+        -h|--help)                           
+            print_help_and_quit 
+            ;;
+        -c|--card|-D|--device|-a|--abstract)
+            [[ -n $cmd ]] && \
+                echo -e "${CR}Please specify options before command.$Cw\n" && \
+                print_help_and_quit
+            [[ "${2:0:1}" == "-" ]] && \
+                echo -e "${CR}Option $1 needs an argument.$Cw\n" && \
+                print_help_and_quit
+
+            opts="$opts $1 $2"
+            shift 2 
+            ;;
+        -d|-n|-v|-q|-i|-s|-R|-M)
+            [[ -n $cmd ]] && \
+                echo -e "${CR}Please specify options before command.$Cw\n" && \
+                print_help_and_quit
+
+            opts="$opts $1"
+            shift 1 
+            ;;
+        *)
+            [[ "${1:0:1}" == "-" ]] && \
+                echo -e "${CR}Unknown option ${1}.$Cw\n" && \
+                print_help_and_quit
+
+            [[ -n $cmd ]] &&  print_help_and_quit
+
+            cmd=$1
+            shift 1
+
+            while [[ $# -ge 1 ]]
+            do
+                [[ "${1:0:1}" == "-" ]] && \
+                    echo -e "${CR}Please specify options before command.$Cw\n" && \
+                    print_help_and_quit
+
+                cmdargs[${#cmdargs[@]}]="$1"
+                shift 1
+            done
+            ;;
+
+    esac
+done
+
+if [[ $cmd == "sinc" || $cmd == "sdec" ]]
+then
+    echo ${cmdargs[@]}
+    ((l=${#cmdargs[@]}-1))
+    P=${cmdargs[$l]}
+    cmdargs=(${cmdargs[@]:0:$l})
+
+    cur_p=`amixer $opts sget ${cmdargs[@]}  | grep -o '\[.*%\]' | head -n 1`
+    ((l=${#cur_p}-3))
+    cur_p=${cur_p:1:$l} # current value to be increased stored in cur_p
+
+    [[ $P == *[!0-9]* ]] && \
+        echo -e "${CR}P has to be an integer.\nExample: $0 $cmd Master 5$Cw\n" && \
+        print_help_and_quit
+
+    if [[ $cmd == "sinc" ]]
+    then
+        ((cur_p=$cur_p+$P))
+    else
+        ((cur_p=$cur_p-$P))
+    fi
+
+    echo $cur_p
+
+    amixer $opts sset ${cmdargs[@]} $cur_p
+
+else
+    amixer $opts $cmd ${cmdargs[@]}
+fi
+
