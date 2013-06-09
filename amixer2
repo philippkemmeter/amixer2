@@ -97,9 +97,7 @@ then
     P=${cmdargs[$l]}
     cmdargs=(${cmdargs[@]:0:$l})
 
-    cur_p=`amixer $opts sget ${cmdargs[@]}  | grep -o '\[.*%\]' | head -n 1`
-    ((l=${#cur_p}-3))
-    cur_p=${cur_p:1:$l} # current value to be increased stored in cur_p
+    cur_p=`amixer $opts sget ${cmdargs[@]}  | grep -o 'Playback [^\[]*\[' | head -n1 | cut -d " " -f 2`
 
     [[ $P == *[!0-9]* ]] && \
         echo -e "${CR}P has to be an integer.\nExample: $0 $cmd Master 5$Cw\n" && \
