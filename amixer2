@@ -1,9 +1,7 @@
 #!/bin/bash
 
-Cw="\033[0m"
-CW="\033[1;37m"
-Cu="\033[4m"
-CR="\033[1;31m"
+cd `dirname $0`
+source ./colors.lib 2>/dev/null
 
 function print_help_and_quit() {
     echo -e "Usage: $CW$0 <options> [command]$Cw"
